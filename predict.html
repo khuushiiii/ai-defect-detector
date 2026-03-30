@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% set active = "predict" %}
+{% block title %}Predict{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">Predict module <em>defects</em></div>
+  <div class="page-sub">Enter module metrics below. The Random Forest model returns a risk tier and severity classification instantly.</div>
+</div>
+
+<div class="card">
+  <div class="card-title">Module Metrics</div>
+  <div id="errorBanner" class="error-banner"></div>
+  <div class="two-col">
+    <div class="field"><label>Lines of Code (LOC)</label><input id="loc" type="number" min="1" placeholder="e.g. 250"/></div>
+    <div class="field"><label>Complexity</label><input id="complexity" type="number" min="1" placeholder="e.g. 12"/></div>
+    <div class="field"><label>Code Churn</label><input id="churn" type="number" min="0" placeholder="e.g. 60"/></div>
+    <div class="field"><label>Commits</label><input id="commits" type="number" min="1" placeholder="e.g. 22"/></div>
+    <div class="field"><label>Developers</label><input id="developers" type="number" min="1" placeholder="e.g. 3"/></div>
+    <div class="field"><label>Module Name (optional)</label><input id="modname" type="text" placeholder="e.g. AuthService"/></div>
+  </div>
+  <button class="btn-primary" id="predictBtn" onclick="runPredict()">⚡ Analyse Module</button>
+</div>
+
+<div class="card fade-in" id="resultCard" style="display:none;">
+  <div class="card-title"><span class="live-dot"></span>Analysis Output</div>
+  <div class="metric-row">
+    <div class="metric"><div class="metric-label">Prediction</div><div class="metric-value" id="mPred">—</div></div>
+    <div class="metric"><div class="metric-label">Probability</div><div class="metric-value" id="mProb">—</div></div>
+    <div class="metric"><div class="metric-label">Risk Level</div><div class="metric-value" id="mRisk">—</div></div>
+    <div class="metric"><div class="metric-label">Severity</div><div class="metric-value" id="mSev">—</div></div>
+  </div>
+  <div class="metric-label" style="margin-bottom:6px;">Defect Probability</div>
+  <div class="prob-bar-track" style="margin-bottom:18px;"><div class="prob-bar-fill" id="probBar" style="width:0%"></div></div>
+  <div class="suggestion" id="suggestion"></div>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+  <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="btn-secondary" onclick="downloadReport()">↓ Download CSV</button>
+    <button class="btn-secondary" onclick="clearResult()">✕ Clear</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lastResult = {};
+let chartInstance = null;
+const FIELDS = [
+  { id:'loc',        key:'LOC'        },
+  { id:'complexity', key:'Complexity' },
+  { id:'churn',      key:'CodeChurn'  },
+  { id:'commits',    key:'Commits'    },
+  { id:'developers', key:'Developers' },
+];
+
+function showError(msg) {
+  const b = document.getElementById('errorBanner');
+  b.textContent = msg; b.style.display = 'block';
+}
+function clearErrors() {
+  document.getElementById('errorBanner').style.display = 'none';
+  FIELDS.forEach(f => document.getElementById(f.id).classList.remove('error'));
+}
+function validateInputs() {
+  let valid = true;
+  FIELDS.forEach(f => {
+    const el = document.getElementById(f.id);
+    if (el.value.trim() === '' || isNaN(el.value) || Number(el.value) < 0) {
+      el.classList.add('error'); valid = false;
+    }
+  });
+  if (!valid) showError('⚠ Please fill in all fields with valid positive numbers.');
+  return valid;
+}
+
+async function runPredict() {
+  clearErrors();
+  if (!validateInputs()) return;
+  const btn = document.getElementById('predictBtn');
+  btn.disabled = true; btn.textContent = '⏳ Analysing…';
+  const payload = {};
+  FIELDS.forEach(f => { payload[f.key] = document.getElementById(f.id).value; });
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) { showError('Server error: ' + (data.error || res.statusText)); return; }
+    lastResult = { ...data, module: document.getElementById('modname').value || 'Unknown', ...payload };
+    renderResult(data);
+    await fetch('/save_history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(lastResult)
+    });
+  } catch(e) {
+    showError('Connection error — is Flask running?');
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Analyse Module';
+  }
+}
+
+function renderResult(d) {
+  const card = document.getElementById('resultCard');
+  card.style.display = 'block';
+  setTimeout(() => card.scrollIntoView({ behavior:'smooth', block:'start' }), 80);
+
+  const riskClass = { High:'badge-high', Medium:'badge-medium', Low:'badge-low' };
+  const sevClass  = { Critical:'badge-critical', High:'badge-high', Medium:'badge-medium', Low:'badge-low' };
+
+  document.getElementById('mPred').textContent = d.prediction === 1 ? '⚠ Defective' : '✔ Clean';
+  document.getElementById('mPred').style.color = d.prediction === 1 ? 'var(--danger)' : 'var(--ok)';
+  document.getElementById('mProb').textContent = (d.probability * 100).toFixed(1) + '%';
+  document.getElementById('mRisk').textContent = d.risk;
+  document.getElementById('mRisk').className   = 'metric-value ' + (riskClass[d.risk] || '');
+  document.getElementById('mSev').textContent  = d.severity;
+  document.getElementById('mSev').className    = 'metric-value ' + (sevClass[d.severity] || '');
+
+  setTimeout(() => { document.getElementById('probBar').style.width = (d.probability * 100) + '%'; }, 50);
+
+  const suggestions = {
+    High:   '⚠️ High defect risk. Immediate code review and refactoring recommended before deployment.',
+    Medium: '⚡ Moderate risk. Schedule additional testing before the next release.',
+    Low:    '✅ Module appears stable. Continue standard review practices.'
+  };
+  document.getElementById('suggestion').textContent = suggestions[d.risk] || '';
+
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: {
+      labels: ['Defect Risk', 'Safe'],
+      datasets: [{
+        data: [
+          parseFloat((d.probability * 100).toFixed(1)),
+          parseFloat(((1 - d.probability) * 100).toFixed(1))
+        ],
+        backgroundColor: ['rgba(255,71,87,.75)', 'rgba(46,213,115,.25)'],
+        borderColor:     ['#ff4757', '#2ed573'],
+        borderWidth: 2, borderRadius: 8, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ' ' + ctx.raw + '%' },
+          backgroundColor:'#0d1420', borderColor:'#1c2a3a', borderWidth:1,
+          titleColor:'#64748b', bodyColor:'#e2e8f0'
+        }
+      },
+      scales: {
+        x: { ticks:{ color:'#64748b', font:{ family:'Space Mono', size:11 } }, grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { min:0, max:100, ticks:{ color:'#64748b', font:{ family:'Space Mono', size:11 }, callback: v => v+'%' }, grid:{ color:'rgba(255,255,255,.04)' } }
+      }
+    }
+  });
+}
+
+async function downloadReport() {
+  if (!lastResult.probability) { alert('Run an analysis first.'); return; }
+  const res = await fetch('/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lastResult)
+  });
+  if (res.ok) alert('✅ Saved to output/user_prediction.csv');
+}
+
+function clearResult() {
+  document.getElementById('resultCard').style.display = 'none';
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+}
+</script>
+{% endblock %}

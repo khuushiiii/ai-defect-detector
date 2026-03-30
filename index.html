@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DefectSense · AI Prediction Engine</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg:      #080c12;
+      --surface: #0d1420;
+      --border:  #1c2a3a;
+      --accent:  #00d4ff;
+      --accent2: #7c3aed;
+      --danger:  #ff4757;
+      --warn:    #ffa502;
+      --ok:      #2ed573;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --card:    #111827;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .wrap {
+      position: relative; z-index: 1;
+      max-width: 580px; margin: 0 auto; padding: 0 24px 80px;
+    }
+
+    /* Header */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 0 36px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 18px;
+    }
+    .logo-text { font-size: 1.25rem; font-weight: 800; letter-spacing: -.5px; }
+    .logo-text span { color: var(--accent); }
+    .badge {
+      font-family: 'Space Mono', monospace; font-size: .65rem;
+      background: rgba(0,212,255,.1); color: var(--accent);
+      border: 1px solid rgba(0,212,255,.25);
+      padding: 4px 10px; border-radius: 20px; letter-spacing: 1px;
+    }
+    .theme-btn {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); padding: 8px 16px; border-radius: 8px;
+      cursor: pointer; font-size: .85rem; font-family: 'Syne', sans-serif;
+      transition: all .2s;
+    }
+    .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Hero */
+    .hero { padding: 40px 0 32px; }
+    .hero h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800; line-height: 1.1; letter-spacing: -1px;
+    }
+    .hero h1 em { font-style: normal; color: var(--accent); }
+    .hero p { margin-top: 10px; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+
+    /* Card */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px; margin-bottom: 20px;
+      transition: border-color .3s;
+    }
+    .card-title {
+      font-size: .7rem; font-weight: 600; letter-spacing: 2px;
+      color: var(--muted); text-transform: uppercase; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title::before {
+      content: ''; width: 6px; height: 6px;
+      background: var(--accent); border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* Fields */
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: .72rem; color: var(--muted);
+      font-family: 'Space Mono', monospace; letter-spacing: 1px;
+      margin-bottom: 6px; text-transform: uppercase;
+    }
+    .field input {
+      width: 100%; background: var(--surface);
+      border: 1px solid var(--border); color: var(--text);
+      padding: 10px 14px; border-radius: 8px;
+      font-family: 'Space Mono', monospace; font-size: .9rem;
+      transition: border-color .2s, box-shadow .2s; outline: none;
+    }
+    .field input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,212,255,.1);
+    }
+    .field input.error { border-color: var(--danger); }
+    .field input::placeholder { color: var(--muted); }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 10px; color: #fff;
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: .95rem; cursor: pointer; letter-spacing: .5px;
+      transition: opacity .2s, transform .1s;
+    }
+    .btn-primary:hover  { opacity: .9; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      width: 100%; padding: 10px; background: transparent;
+      border: 1px solid var(--border); border-radius: 10px; color: var(--muted);
+      font-family: 'Syne', sans-serif; font-size: .85rem;
+      cursor: pointer; margin-top: 10px; transition: all .2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Error banner */
+    .error-banner {
+      display: none; background: rgba(255,71,87,.1);
+      border: 1px solid rgba(255,71,87,.3); color: var(--danger);
+      border-radius: 8px; padding: 10px 14px;
+      font-size: .85rem; margin-bottom: 14px;
+    }
+
+    /* Result card */
+    .result-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      display: none; animation: fadeUp .4s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Metrics */
+    .metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+    .metric {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .metric-label {
+      font-size: .65rem; color: var(--muted);
+      font-family: 'Space Mono', monospace; letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 6px;
+    }
+    .metric-value { font-size: 1.35rem; font-weight: 800; }
+    .risk-high    { color: var(--danger); }
+    .risk-medium  { color: var(--warn);   }
+    .risk-low     { color: var(--ok);     }
+    .sev-critical { color: var(--danger); }
+    .sev-high     { color: #ff6b81; }
+    .sev-medium   { color: var(--warn); }
+    .sev-low      { color: var(--ok); }
+
+    /* Probability bar */
+    .prob-bar-wrap { margin-bottom: 18px; }
+    .prob-bar-track {
+      height: 6px; background: var(--border);
+      border-radius: 10px; overflow: hidden; margin-top: 8px;
+    }
+    .prob-bar-fill {
+      height: 100%; border-radius: 10px;
+      background: linear-gradient(90deg, var(--accent), var(--danger));
+      transition: width 1s cubic-bezier(.4,0,.2,1); width: 0;
+    }
+
+    /* Suggestion */
+    .suggestion {
+      background: var(--surface); border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0; padding: 12px 16px;
+      font-size: .85rem; line-height: 1.5; margin-bottom: 18px;
+    }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 200px; }
+
+    /* Live dot */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: .4; transform: scale(1.4); }
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--ok); display: inline-block;
+      animation: pulse 2s infinite; margin-right: 6px;
+    }
+
+    /* Light mode */
+    body.light {
+      --bg: #f1f5f9; --surface: #fff; --border: #e2e8f0;
+      --text: #0f172a; --muted: #94a3b8; --card: #fff;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <div class="logo-text">Defect<span>Sense</span></div>
+        <div class="badge">ML · v3.0</div>
+      </div>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()">☀ Toggle Light</button>
+  </header>
+
+  <section class="hero">
+    <h1>Predict software defects<br/><em>before they ship.</em></h1>
+    <p>Enter module metrics below. The Random Forest model returns a defect probability, risk tier, and severity classification in real time.</p>
+  </section>
+
+  <!-- Input Card -->
+  <div class="card">
+    <div class="card-title">Module Metrics</div>
+
+    <div id="errorBanner" class="error-banner"></div>
+
+    <div class="field">
+      <label>Lines of Code (LOC)</label>
+      <input id="loc" type="number" min="1" placeholder="e.g. 250"/>
+    </div>
+    <div class="field">
+      <label>Complexity</label>
+      <input id="complexity" type="number" min="1" placeholder="e.g. 12"/>
+    </div>
+    <div class="field">
+      <label>Code Churn</label>
+      <input id="churn" type="number" min="0" placeholder="e.g. 60"/>
+    </div>
+    <div class="field">
+      <label>Commits</label>
+      <input id="commits" type="number" min="1" placeholder="e.g. 22"/>
+    </div>
+    <div class="field">
+      <label>Developers</label>
+      <input id="developers" type="number" min="1" placeholder="e.g. 3"/>
+    </div>
+
+    <button class="btn-primary" id="predictBtn" onclick="runPredict()">
+      ⚡ Analyse Module
+    </button>
+    <button class="btn-secondary" onclick="downloadReport()">
+      ↓ Download CSV Report
+    </button>
+  </div>
+
+  <!-- Result Card -->
+  <div class="result-card" id="resultCard">
+    <div class="card-title"><span class="live-dot"></span>Analysis Output</div>
+
+    <div class="metric-row">
+      <div class="metric">
+        <div class="metric-label">Prediction</div>
+        <div class="metric-value" id="mPred">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Probability</div>
+        <div class="metric-value" id="mProb">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Risk Level</div>
+        <div class="metric-value" id="mRisk">—</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Severity</div>
+        <div class="metric-value" id="mSev">—</div>
+      </div>
+    </div>
+
+    <div class="prob-bar-wrap">
+      <div class="metric-label">Defect Probability</div>
+      <div class="prob-bar-track">
+        <div class="prob-bar-fill" id="probBar"></div>
+      </div>
+    </div>
+
+    <div class="suggestion" id="suggestion"></div>
+
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let lastResult   = {};
+let chartInstance = null;
+
+const FIELDS = [
+  { id: 'loc',        key: 'LOC',        label: 'Lines of Code' },
+  { id: 'complexity', key: 'Complexity', label: 'Complexity' },
+  { id: 'churn',      key: 'CodeChurn',  label: 'Code Churn' },
+  { id: 'commits',    key: 'Commits',    label: 'Commits' },
+  { id: 'developers', key: 'Developers', label: 'Developers' },
+];
+
+function showError(msg) {
+  const b = document.getElementById('errorBanner');
+  b.textContent = msg;
+  b.style.display = 'block';
+}
+
+function clearErrors() {
+  document.getElementById('errorBanner').style.display = 'none';
+  FIELDS.forEach(f => document.getElementById(f.id).classList.remove('error'));
+}
+
+function validateInputs() {
+  let valid = true;
+  FIELDS.forEach(f => {
+    const el  = document.getElementById(f.id);
+    const val = el.value.trim();
+    if (val === '' || isNaN(val) || Number(val) < 0) {
+      el.classList.add('error');
+      valid = false;
+    }
+  });
+  if (!valid) showError('⚠ Please fill in all fields with valid positive numbers.');
+  return valid;
+}
+
+async function runPredict() {
+  clearErrors();
+  if (!validateInputs()) return;
+
+  const btn = document.getElementById('predictBtn');
+  btn.disabled    = true;
+  btn.textContent = '⏳ Analysing…';
+
+  const payload = {};
+  FIELDS.forEach(f => { payload[f.key] = document.getElementById(f.id).value; });
+
+  try {
+    const res  = await fetch('/predict', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(`Server error: ${data.error || res.statusText}`); return; }
+    lastResult = data;
+    renderResult(data);
+  } catch (e) {
+    showError('Connection error — is Flask running?');
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '⚡ Analyse Module';
+  }
+}
+
+function renderResult(d) {
+  const card = document.getElementById('resultCard');
+  card.style.display = 'block';
+  setTimeout(() => card.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+
+  const riskClass = { High: 'risk-high', Medium: 'risk-medium', Low: 'risk-low' };
+  const sevClass  = { Critical: 'sev-critical', High: 'sev-high', Medium: 'sev-medium', Low: 'sev-low' };
+
+  document.getElementById('mPred').textContent  = d.prediction === 1 ? '⚠ Defective' : '✔ Clean';
+  document.getElementById('mPred').style.color  = d.prediction === 1 ? 'var(--danger)' : 'var(--ok)';
+  document.getElementById('mProb').textContent  = (d.probability * 100).toFixed(1) + '%';
+  document.getElementById('mRisk').textContent  = d.risk;
+  document.getElementById('mRisk').className    = 'metric-value ' + (riskClass[d.risk] || '');
+  document.getElementById('mSev').textContent   = d.severity;
+  document.getElementById('mSev').className     = 'metric-value ' + (sevClass[d.severity] || '');
+
+  setTimeout(() => {
+    document.getElementById('probBar').style.width = (d.probability * 100) + '%';
+  }, 50);
+
+  const suggestions = {
+    High:   '⚠️ High defect risk detected. Immediate code review and refactoring is strongly recommended before deployment.',
+    Medium: '⚡ Moderate risk. Schedule additional testing and static analysis before the next release.',
+    Low:    '✅ Module appears stable. Continue standard review practices.',
+  };
+  document.getElementById('suggestion').textContent = suggestions[d.risk] || '';
+
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: {
+      labels: ['Defect Risk', 'Safe'],
+      datasets: [{
+        label: 'Probability',
+        data: [d.probability, 1 - d.probability],
+        backgroundColor: ['rgba(255,71,87,.75)', 'rgba(46,213,115,.25)'],
+        borderColor:     ['#ff4757', '#2ed573'],
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: { label: ctx => ' ' + (ctx.raw * 100).toFixed(1) + '%' },
+          backgroundColor: '#0d1420', borderColor: '#1c2a3a', borderWidth: 1,
+          titleColor: '#64748b', bodyColor: '#e2e8f0',
+          titleFont: { family: 'Space Mono', size: 11 },
+          bodyFont:  { family: 'Space Mono', size: 12 },
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { family: 'Space Mono', size: 11 } },
+          grid:  { color: 'rgba(255,255,255,.04)' },
+          border:{ color: '#1c2a3a' }
+        },
+        y: {
+          min: 0, max: 1,
+          ticks: {
+            color: '#64748b',
+            font: { family: 'Space Mono', size: 11 },
+            callback: val => (val * 100) + '%',
+          },
+          grid:  { color: 'rgba(255,255,255,.04)' },
+          border:{ color: '#1c2a3a' }
+        }
+      }
+    }
+  });
+}
+
+async function downloadReport() {
+  if (!lastResult.probability) { alert('Run an analysis first.'); return; }
+  const res = await fetch('/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(lastResult)
+  });
+  const data = await res.json();
+  if (res.ok) alert('✅ Report saved to output/user_prediction.csv');
+  else alert('Error: ' + data.error);
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+}
+</script>
+</body>
+</html>

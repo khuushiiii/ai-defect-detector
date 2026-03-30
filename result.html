@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DefectSense · Result</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:      #080c12;
+      --surface: #0d1420;
+      --border:  #1c2a3a;
+      --accent:  #00d4ff;
+      --accent2: #7c3aed;
+      --danger:  #ff4757;
+      --warn:    #ffa502;
+      --ok:      #2ed573;
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --card:    #111827;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex;
+      align-items: center; justify-content: center;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none;
+    }
+    .card {
+      position: relative; z-index: 1;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 48px 40px;
+      width: 100%; max-width: 440px; text-align: center;
+      animation: pop .5s cubic-bezier(.175,.885,.32,1.275);
+    }
+    @keyframes pop {
+      from { opacity: 0; transform: scale(.92); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .icon { font-size: 3rem; margin-bottom: 16px; }
+    h1 { font-size: 1.6rem; font-weight: 800; margin-bottom: 6px; }
+    .sub { color: var(--muted); font-size: .85rem; margin-bottom: 32px; }
+    .row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .row:last-of-type { border-bottom: none; }
+    .row-label {
+      font-size: .7rem; font-family: 'Space Mono', monospace;
+      letter-spacing: 1px; color: var(--muted); text-transform: uppercase;
+    }
+    .row-value { font-weight: 700; font-size: 1.05rem; }
+    .defective { color: var(--danger); }
+    .clean     { color: var(--ok); }
+    .high      { color: var(--danger); }
+    .medium    { color: var(--warn); }
+    .low       { color: var(--ok); }
+    .critical  { color: var(--danger); }
+    .back-btn {
+      display: inline-block; margin-top: 28px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff; text-decoration: none;
+      padding: 12px 28px; border-radius: 10px;
+      font-weight: 700; font-size: .9rem;
+      transition: opacity .2s, transform .1s;
+    }
+    .back-btn:hover { opacity: .88; transform: translateY(-1px); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">{{ '⚠️' if pred == 1 else '✅' }}</div>
+    <h1>{{ 'Defect Detected' if pred == 1 else 'Module Looks Clean' }}</h1>
+    <p class="sub">DefectSense AI · Random Forest Classifier</p>
+
+    <div class="row">
+      <span class="row-label">Prediction</span>
+      <span class="row-value {{ 'defective' if pred == 1 else 'clean' }}">
+        {{ 'Defective' if pred == 1 else 'Clean' }}
+      </span>
+    </div>
+    <div class="row">
+      <span class="row-label">Probability</span>
+      <span class="row-value">{{ (prob * 100) | round(1) }}%</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Risk Level</span>
+      <span class="row-value {{ risk | lower }}">{{ risk }}</span>
+    </div>
+    <div class="row">
+      <span class="row-label">Severity</span>
+      <span class="row-value {{ severity | lower }}">{{ severity }}</span>
+    </div>
+
+    <a href="/" class="back-btn">← Analyse Another Module</a>
+  </div>
+</body>
+</html>

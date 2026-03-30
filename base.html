@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DefectSense · {% block title %}{% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="/static/style.css"/>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<div class="app-layout">
+
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🧠</div>
+      <div>
+        <div class="logo-text">Defect<span>Sense</span></div>
+        <div class="badge">ML · v3.0</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="/"          class="nav-item {% if active == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">⬛</span> Dashboard
+      </a>
+      <a href="/predict"   class="nav-item {% if active == 'predict' %}active{% endif %}">
+        <span class="nav-icon">⚡</span> Predict
+      </a>
+      <a href="/history"   class="nav-item {% if active == 'history' %}active{% endif %}">
+        <span class="nav-icon">📋</span> History
+      </a>
+      <a href="/analytics" class="nav-item {% if active == 'analytics' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Analytics
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-btn" onclick="toggleTheme()">☀ Toggle Light</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-wrap">
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+
+</div>
+
+<script>
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('theme', document.body.classList.contains('light') ? 'light' : 'dark');
+}
+if (localStorage.getItem('theme') === 'light') document.body.classList.add('light');
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

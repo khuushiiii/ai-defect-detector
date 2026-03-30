@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% set active = "dashboard" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="page-title" style="font-size:1.6rem;">Welcome back to <em>DefectSense</em></div>
+    <div class="page-sub">Overview of all module predictions and risk levels across your dataset.</div>
+</div>
+
+<!-- Stats -->
+<div class="stat-grid">
+  <div class="stat">
+    <div class="stat-label">Total Modules</div>
+    <div class="stat-value">{{ stats.total }}</div>
+    <div class="stat-sub">in dataset</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">High Risk</div>
+    <div class="stat-value" style="color:var(--danger)">{{ stats.high }}</div>
+    <div class="stat-sub">need attention</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Medium Risk</div>
+    <div class="stat-value" style="color:var(--warn)">{{ stats.medium }}</div>
+    <div class="stat-sub">monitor closely</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Low Risk</div>
+    <div class="stat-value" style="color:var(--ok)">{{ stats.low }}</div>
+    <div class="stat-sub">stable</div>
+  </div>
+</div>
+
+<div class="two-col">
+
+  <!-- Risk Distribution Chart -->
+  <div class="card">
+    <div class="card-title">Risk distribution</div>
+    <div class="chart-wrap">
+      <canvas id="riskChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top Risk Modules -->
+  <div class="card">
+    <div class="card-title">Top 5 riskiest modules</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Module</th><th>Probability</th><th>Risk</th></tr>
+        </thead>
+        <tbody>
+          {% for row in top_modules %}
+          <tr>
+            <td><strong>{{ row.Module }}</strong></td>
+            <td>{{ (row.Probability * 100) | round(1) }}%</td>
+            <td><span class="badge-{{ row.Risk | lower }}">{{ row.Risk }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- Defect Probability per Module -->
+<div class="card">
+  <div class="card-title">Defect probability — all modules</div>
+  <div style="position:relative; height:260px;">
+    <canvas id="allModulesChart"></canvas>
+  </div>
+</div>
+
+<!-- Quick action -->
+<div class="card" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+  <div>
+    <div style="font-weight:700; font-size:1rem; margin-bottom:4px;">Ready to analyse a module?</div>
+    <div style="color:var(--muted); font-size:.85rem;">Run the AI prediction engine on any new module.</div>
+  </div>
+  <a href="/predict" style="text-decoration:none;">
+    <button class="btn-primary" style="width:auto; padding:12px 28px;">⚡ Go to Predict</button>
+  </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const riskData = {{ risk_counts | tojson }};
+const allModules = {{ all_modules | tojson }};
+
+new Chart(document.getElementById('riskChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['High', 'Medium', 'Low'],
+    datasets: [{
+      data: [riskData.High, riskData.Medium, riskData.Low],
+      backgroundColor: ['rgba(255,71,87,.8)', 'rgba(255,165,2,.8)', 'rgba(46,213,115,.5)'],
+      borderColor: ['#ff4757', '#ffa502', '#2ed573'],
+      borderWidth: 2
+    }]
+  },
+  options: {
+    cutout: '68%',
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#64748b', font: { family: 'Space Mono', size: 11 } } }
+    }
+  }
+});
+
+new Chart(document.getElementById('allModulesChart'), {
+  type: 'bar',
+  data: {
+    labels: allModules.map(m => m.Module),
+    datasets: [{
+      label: 'Defect Probability',
+      data: allModules.map(m => parseFloat((m.Probability * 100).toFixed(1))),
+      backgroundColor: allModules.map(m =>
+        m.Risk === 'High' ? 'rgba(255,71,87,.75)' :
+        m.Risk === 'Medium' ? 'rgba(255,165,2,.75)' : 'rgba(46,213,115,.5)'
+      ),
+      borderRadius: 6, borderSkipped: false
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#64748b', font: { family: 'Space Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,.03)' } },
+      y: {
+        min: 0, max: 100,
+        ticks: { color: '#64748b', font: { family: 'Space Mono', size: 11 }, callback: v => v + '%' },
+        grid: { color: 'rgba(255,255,255,.04)' }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}

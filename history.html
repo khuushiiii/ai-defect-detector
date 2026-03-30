@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% set active = "history" %}
+{% block title %}History{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-title">Prediction <em>history</em></div>
+  <div class="page-sub">All predictions made through the predict page, saved automatically.</div>
+</div>
+
+<div class="card">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+    <div class="card-title" style="margin-bottom:0;">All predictions</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+      <select id="filterRisk" onchange="filterTable()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:7px 12px;border-radius:8px;font-family:'Space Mono',monospace;font-size:.8rem;outline:none;">
+        <option value="all">All risks</option>
+        <option value="High">High only</option>
+        <option value="Medium">Medium only</option>
+        <option value="Low">Low only</option>
+      </select>
+      <button class="btn-secondary" onclick="downloadHistory()">↓ Export CSV</button>
+      <button class="btn-danger"    onclick="clearHistory()">✕ Clear All</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table id="historyTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Module</th><th>LOC</th><th>Complexity</th>
+          <th>Churn</th><th>Commits</th><th>Devs</th>
+          <th>Probability</th><th>Risk</th><th>Severity</th><th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        {% if history %}
+          {% for h in history %}
+          <tr data-risk="{{ h.risk }}">
+            <td style="color:var(--muted)">{{ loop.index }}</td>
+            <td><strong>{{ h.module or '—' }}</strong></td>
+            <td>{{ h.LOC }}</td>
+            <td>{{ h.Complexity }}</td>
+            <td>{{ h.CodeChurn }}</td>
+            <td>{{ h.Commits }}</td>
+            <td>{{ h.Developers }}</td>
+            <td>{{ (h.probability * 100) | round(1) }}%</td>
+            <td><span class="badge-{{ h.risk | lower }}">{{ h.risk }}</span></td>
+            <td><span class="badge-{{ h.severity | lower }}">{{ h.severity }}</span></td>
+            <td style="color:var(--muted);font-family:'Space Mono',monospace;font-size:.75rem">{{ h.timestamp }}</td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td colspan="11" style="text-align:center;color:var(--muted);padding:32px;">
+              No predictions yet. Go to <a href="/predict" style="color:var(--accent)">Predict</a> to get started.
+            </td>
+          </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable() {
+  const val = document.getElementById('filterRisk').value;
+  document.querySelectorAll('#historyBody tr[data-risk]').forEach(row => {
+    row.style.display = (val === 'all' || row.dataset.risk === val) ? '' : 'none';
+  });
+}
+async function clearHistory() {
+  if (!confirm('Clear all prediction history?')) return;
+  await fetch('/clear_history', { method: 'POST' });
+  location.reload();
+}
+function downloadHistory() {
+  window.location.href = '/download_history';
+}
+</script>
+{% endblock %}
